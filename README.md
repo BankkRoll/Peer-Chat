@@ -23,21 +23,21 @@
 
 ```mermaid
 graph LR
-    U1([![User](https://openclipart.org/image/2000px/247319)]):::user
-    U2([![User](https://openclipart.org/image/2000px/247319)]):::user
-    U3([![User](https://openclipart.org/image/2000px/247319)]):::user
-    U4([![User](https://openclipart.org/image/2000px/247319)]):::user
-    U5([![User](https://openclipart.org/image/2000px/247319)]):::user
-    U6([![User](https://openclipart.org/image/2000px/247319)]):::user
-    Router([![Router](https://cdn-icons-png.flaticon.com/256/11017/11017214.png)]):::router
+    U1([User]):::user
+    U2([User]):::user
+    U3([User]):::user
+    U4([User]):::user
+    U5([User]):::user
+    U6([User]):::user
+    Peer([Peer]):::peer
 
-    U1 --> Router
-    U2 --> Router
-    U3 --> Router
-    Router --> U4
-    Router --> U5
-    Router --> U6
+    U1 <--> Peer
+    U2 <--> Peer
+    U3 <--> Peer
+    Peer <--> U4
+    Peer <--> U5
+    Peer <--> U6
 
     classDef user fill:#fff,stroke:#ccc,stroke-width:3px;
-    classDef router fill:#fff,stroke:#ccc,stroke-width:3px;
+    classDef peer fill:#fff,stroke:#000,stroke-width:3px;
 ```
