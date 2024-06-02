@@ -1,5 +1,7 @@
 # PeerChat
 
+![peerchat](https://github.com/BankkRoll/Peer-Chat/assets/106103625/4330ad1d-ada3-4435-a585-ed9fd9bf4649)
+
 ## Bug Fixes and Improvements
 
 - [ ] Fix issue with peer being disconnected seconds after joining a peer.
