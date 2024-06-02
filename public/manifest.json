@@ -1,0 +1,43 @@
+{
+  "name": "Peer Network Chat",
+  "short_name": "Peer Chat",
+  "description": "Peer Network Chat to connect with friends on the same network without internet connection.",
+  "icons": [
+    {
+      "src": "/icons/icon-64x64.png",
+      "type": "image/png",
+      "sizes": "64x64"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "type": "image/png",
+      "sizes": "128x128"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-256x256.png",
+      "type": "image/png",
+      "sizes": "256x256"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/icons/icon-1024x1024.png",
+      "type": "image/png",
+      "sizes": "1024x1024"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#162335",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#162335",
+  "orientation": "portrait-primary"
+}
