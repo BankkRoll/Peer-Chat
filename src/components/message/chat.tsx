@@ -1,43 +1,54 @@
-import Messages, { Message } from "@/components/message/messages-section";
+// src/components/message/chat.tsx
 import Peer, { DataConnection } from "peerjs";
 import React, { useEffect, useRef, useState } from "react";
 import { connectToPeer, createPeer, generatePeerId } from "@/utils/peerUtils";
 
 import { AnimatedBeamer } from "@/components/home/beam";
+import { Message } from "@/types";
 import MessageInput from "@/components/message/message-input";
 import MessageLink from "@/components/message/message-link";
+import Messages from "@/components/message/messages-section";
+import { v4 as uuidv4 } from "uuid";
 
-interface ChatProps {
-  username: string;
-}
-
-const Chat: React.FC<ChatProps> = ({ username }) => {
+const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [connection, setConnection] = useState<DataConnection | null>(null);
   const [peer, setPeer] = useState<Peer | null>(null);
   const [showLink, setShowLink] = useState<boolean>(false);
   const [wasCopied, setWasCopied] = useState<boolean>(false);
-  const peerId = generatePeerId(username);
+  const [username, setUsername] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const randomUsername = `user_${uuidv4().substr(0, 8)}`;
+    setUsername(randomUsername);
+    const peerId = generatePeerId(randomUsername);
+
     const targetPeerId = window.location.hash.slice(1);
+    let cleanup: (() => void) | undefined;
+
     if (targetPeerId) {
       const newPeer = new Peer(peerId);
       setPeer(newPeer);
-      connectToPeer(
+      cleanup = connectToPeer(
         newPeer,
         targetPeerId,
         saveMessage,
-        setConnection,
-        connection,
+        setConnection
       );
     } else {
-      createPeer(peerId, saveMessage, setConnection, setShowLink, setPeer);
+      const newPeer = createPeer(
+        peerId,
+        saveMessage,
+        setConnection,
+        setShowLink,
+        setPeer
+      );
+      setPeer(newPeer);
     }
 
-    // Clean up peer instance on unmount
     return () => {
+      if (cleanup) cleanup();
       if (peer && !peer.destroyed) {
         peer.destroy();
       }
@@ -45,29 +56,20 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const saveMessage = (message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
-    setTimeout(() => {
-      scrollToBottom();
-    }, 1);
   };
 
-  const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
-  let link =
+  const link =
     typeof window !== "undefined"
-      ? window.location.href + `#${peerId}`
-      : `#${peerId}`;
+      ? `${window.location.origin}${window.location.pathname}#${peer?.id}`
+      : "";
 
   return (
-    <div>
+    <div className="flex flex-col h-screen">
       {showLink && (
         <>
           <MessageLink
@@ -80,16 +82,20 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
           </div>
         </>
       )}
-      <div className="flex-grow mx-auto overflow-auto">
-        <Messages messages={messages} />
-        <div ref={messagesEndRef} />
-      </div>
       {connection && peer && (
-        <MessageInput
-          connection={connection}
-          peer={peer}
-          saveMessage={saveMessage}
-        />
+        <>
+          <div className="flex-grow overflow-auto">
+            <Messages messages={messages} />
+            <div ref={messagesEndRef} />
+          </div>
+
+          <MessageInput
+            connection={connection}
+            peer={peer}
+            saveMessage={saveMessage}
+            username={username}
+          />
+        </>
       )}
     </div>
   );

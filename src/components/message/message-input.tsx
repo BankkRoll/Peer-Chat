@@ -1,13 +1,11 @@
-import {
-  AutosizeTextAreaRef,
-  AutosizeTextarea,
-} from "@/components/ui/autosize-textarea";
+// src/components/message/message-input.tsx
+import { AutosizeTextAreaRef, AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { BiPhoneOutgoing, BiVideo } from "react-icons/bi";
 import { DataConnection, MediaConnection, Peer } from "peerjs";
 import React, { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Message } from "@/components/message/messages-section";
+import { Message } from "@/types";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";
 
@@ -15,12 +13,14 @@ interface MessageInputProps {
   connection: DataConnection;
   peer: Peer;
   saveMessage: (message: Message) => void;
+  username: string;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
   connection,
   peer,
   saveMessage,
+  username,
 }) => {
   const textareaRef = useRef<AutosizeTextAreaRef>(null);
   const [isFirstEnter, setIsFirstEnter] = useState(false);
@@ -37,16 +37,21 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   const sendMessage = () => {
     if (textareaRef.current?.textArea) {
-      const message = textareaRef.current.textArea.value.trim();
-      if (message.length > 0) {
+      const messageText = textareaRef.current.textArea.value.trim();
+      if (messageText.length > 0) {
+        const message = {
+          text: messageText,
+          username: username,
+        };
         textareaRef.current.textArea.value = "";
         textareaRef.current.textArea.style.height = "52px";
         saveMessage({
           id: Date.now().toString(),
-          text: message,
+          text: messageText,
           isSender: true,
+          username: username,
         });
-        connection.send(message);
+        connection.send(JSON.stringify(message));
       }
     }
   };
@@ -83,7 +88,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
     navigator.mediaDevices
       .getUserMedia(mediaOptions)
       .then((stream) => {
-        // Send a call request message to all peers
         const callRequest = { type, peerId: peer.id };
         connection.send(JSON.stringify({ callRequest }));
 

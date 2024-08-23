@@ -1,11 +1,6 @@
+// src/components/message/messages-section.tsx
+import { Message } from "@/types";
 import React from "react";
-
-export interface Message {
-  id: string;
-  text: string;
-  isSender: boolean;
-  isSystem?: boolean;
-}
 
 interface MessagesProps {
   messages: Message[];
@@ -23,13 +18,24 @@ const Messages: React.FC<MessagesProps> = ({ messages }) => {
         >
           <div
             className={`px-4 py-2 rounded-lg ${
-              message.isSender
+              message.isSystem
+                ? "bg-gray-300 text-gray-800"
+                : message.isSender
                 ? "bg-blue-500 text-white"
                 : "bg-gray-200 text-gray-900"
             }`}
             style={{ maxWidth: "80%", wordWrap: "break-word" }}
           >
-            {message.text}
+            {message.isSystem ? (
+              <span className="italic">{message.text}</span>
+            ) : (
+              <>
+                <div className="font-bold text-sm">
+                  {message.username || (message.isSender ? "You" : "Other")}
+                </div>
+                <div>{message.text}</div>
+              </>
+            )}
           </div>
         </div>
       ))}
