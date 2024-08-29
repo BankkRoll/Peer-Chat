@@ -1,9 +1,9 @@
-// src/components/message/message-input.tsx
-import { AutosizeTextAreaRef, AutosizeTextarea } from "@/components/ui/autosize-textarea";
-import { BiPhoneOutgoing, BiVideo } from "react-icons/bi";
+import { AutosizeTextAreaRef, AutosizeTextarea } from "../ui/autosize-textarea";
+import { BiMicrophone, BiPhoneOutgoing, BiVideo } from "react-icons/bi";
 import { DataConnection, MediaConnection, Peer } from "peerjs";
 import React, { useEffect, useRef, useState } from "react";
 
+import { BsXCircle } from "react-icons/bs";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/types";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
@@ -14,6 +14,10 @@ interface MessageInputProps {
   peer: Peer;
   saveMessage: (message: Message) => void;
   username: string;
+  incomingCall: { type: "audio" | "video"; peerId: string } | null;
+  setIncomingCall: React.Dispatch<
+    React.SetStateAction<{ type: "audio" | "video"; peerId: string } | null>
+  >;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -21,187 +25,127 @@ const MessageInput: React.FC<MessageInputProps> = ({
   peer,
   saveMessage,
   username,
+  incomingCall,
+  setIncomingCall,
 }) => {
   const textareaRef = useRef<AutosizeTextAreaRef>(null);
-  const [isFirstEnter, setIsFirstEnter] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{
-    type: "audio" | "video";
-    peerId: string;
-  } | null>(null);
   const [currentCall, setCurrentCall] = useState<{
     type: "audio" | "video";
     call: MediaConnection;
     startTime: Date;
   } | null>(null);
   const [callDuration, setCallDuration] = useState<string>("00:00");
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isCallInitiating, setIsCallInitiating] = useState<boolean>(false);
 
   const sendMessage = () => {
-    if (textareaRef.current?.textArea) {
+    if (textareaRef.current?.textArea.value.trim()) {
       const messageText = textareaRef.current.textArea.value.trim();
-      if (messageText.length > 0) {
-        const message = {
-          text: messageText,
-          username: username,
-        };
-        textareaRef.current.textArea.value = "";
-        textareaRef.current.textArea.style.height = "52px";
-        saveMessage({
-          id: Date.now().toString(),
-          text: messageText,
-          isSender: true,
-          username: username,
-        });
-        connection.send(JSON.stringify(message));
-      }
+      const message: Message = {
+        id: Date.now().toString(),
+        text: messageText,
+        isSender: true,
+        username: username,
+        timestamp: new Date().toISOString(),
+      };
+      textareaRef.current.textArea.value = "";
+      saveMessage(message);
+      connection.send(JSON.stringify(message));
     }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter") {
-      if (isFirstEnter) {
-        event.preventDefault();
-        sendMessage();
-        setIsFirstEnter(false);
-      } else {
-        setIsFirstEnter(true);
-      }
-    } else {
-      setIsFirstEnter(false);
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
     }
   };
 
-  const updateCallDuration = (startTime: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - startTime.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    setCallDuration(
-      `${minutes.toString().padStart(2, "0")}:${seconds
-        .toString()
-        .padStart(2, "0")}`,
-    );
-  };
-
-  const initiateCall = (type: "audio" | "video") => {
-    const mediaOptions =
-      type === "audio" ? { audio: true } : { video: true, audio: true };
-    navigator.mediaDevices
-      .getUserMedia(mediaOptions)
-      .then((stream) => {
-        const callRequest = { type, peerId: peer.id };
-        connection.send(JSON.stringify({ callRequest }));
-
-        peer.on("call", (call) => {
-          call.answer(stream);
-          setCurrentCall({ type, call, startTime: new Date() });
-          call.on("stream", (remoteStream) => {
-            if (type === "audio") {
-              const audioElement = document.getElementById(
-                "remoteAudio",
-              ) as HTMLAudioElement;
-              if (audioElement) {
-                audioElement.srcObject = remoteStream;
-                audioElement.play();
-              }
-            } else {
-              const videoElement = document.getElementById(
-                "remoteVideo",
-              ) as HTMLVideoElement;
-              if (videoElement) {
-                videoElement.srcObject = remoteStream;
-                videoElement.play();
-                videoElement.classList.remove("hidden");
-              }
-            }
-          });
-          call.on("close", () => {
-            setCurrentCall(null);
-            const videoElement = document.getElementById(
-              "remoteVideo",
-            ) as HTMLVideoElement;
-            if (videoElement) {
-              videoElement.classList.add("hidden");
-            }
-          });
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to get local stream", err);
-      });
-  };
-
-  const acceptCall = (type: "audio" | "video", peerId: string) => {
-    const mediaOptions =
-      type === "audio" ? { audio: true } : { video: true, audio: true };
-    navigator.mediaDevices
-      .getUserMedia(mediaOptions)
-      .then((stream) => {
-        const call = peer.call(peerId, stream);
-        setCurrentCall({ type, call, startTime: new Date() });
-        call.on("stream", (remoteStream) => {
-          if (type === "audio") {
-            const audioElement = document.getElementById(
-              "remoteAudio",
-            ) as HTMLAudioElement;
-            if (audioElement) {
-              audioElement.srcObject = remoteStream;
-              audioElement.play();
-            }
-          } else {
-            const videoElement = document.getElementById(
-              "remoteVideo",
-            ) as HTMLVideoElement;
-            if (videoElement) {
-              videoElement.srcObject = remoteStream;
-              videoElement.play();
-              videoElement.classList.remove("hidden");
-            }
-          }
-        });
-        call.on("close", () => {
-          setCurrentCall(null);
-          const videoElement = document.getElementById(
-            "remoteVideo",
-          ) as HTMLVideoElement;
-          if (videoElement) {
-            videoElement.classList.add("hidden");
-          }
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to get local stream", err);
-      });
-  };
-
-  const handleIncomingMessage = (data: string) => {
+  const initiateCall = async (type: "audio" | "video") => {
     try {
-      const message = JSON.parse(data);
-      if (message.callRequest) {
-        const { type, peerId } = message.callRequest;
-        setIncomingCall({ type, peerId });
-      }
+      setIsCallInitiating(true);
+      const stream = await navigator.mediaDevices.getUserMedia(
+        type === "audio" ? { audio: true } : { video: true, audio: true }
+      );
+      setLocalStream(stream);
+      connection.send(
+        JSON.stringify({ callRequest: { type, peerId: peer.id } })
+      );
+
+      // Listen for the answer from the other peer
+      peer.on("call", (call) => {
+        call.answer(stream);
+        handleCall(call, type);
+      });
     } catch (err) {
-      console.error("Failed to parse incoming message", err);
+      console.error("Failed to get local stream", err);
+      setIsCallInitiating(false);
     }
   };
 
-  useEffect(() => {
-    connection.on("data", (data) => {
-      handleIncomingMessage(data as string);
-    });
-  }, [connection]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (currentCall) {
-      timer = setInterval(() => {
-        updateCallDuration(currentCall.startTime);
-      }, 1000);
-    } else {
-      setCallDuration("00:00");
+  const acceptCall = async () => {
+    if (incomingCall) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(
+          incomingCall.type === "audio"
+            ? { audio: true }
+            : { video: true, audio: true }
+        );
+        setLocalStream(stream);
+        const call = peer.call(incomingCall.peerId, stream);
+        handleCall(call, incomingCall.type);
+        setIncomingCall(null);
+      } catch (err) {
+        console.error("Failed to get local stream", err);
+      }
     }
-    return () => clearInterval(timer);
-  }, [currentCall]);
+  };
+
+  const handleCall = (call: MediaConnection, type: "audio" | "video") => {
+    setCurrentCall({ type, call, startTime: new Date() });
+    setIsCallInitiating(false);
+    call.on("stream", (remoteStream) => {
+      handleRemoteStream(remoteStream, type);
+    });
+    call.on("close", endCall);
+  };
+
+  const handleRemoteStream = (
+    remoteStream: MediaStream,
+    type: "audio" | "video"
+  ) => {
+    const mediaElement = document.getElementById(
+      type === "audio" ? "remoteAudio" : "remoteVideo"
+    ) as HTMLMediaElement;
+    if (mediaElement) {
+      mediaElement.srcObject = remoteStream;
+      mediaElement
+        .play()
+        .catch((error) => console.error("Error playing media:", error));
+    }
+  };
+
+  const endCall = () => {
+    if (currentCall?.call) {
+      currentCall.call.close();
+    }
+    if (localStream) {
+      localStream.getTracks().forEach((track) => track.stop());
+    }
+    setCurrentCall(null);
+    setCallDuration("00:00");
+    setLocalStream(null);
+    setIsCallInitiating(false);
+  };
+
+  const rejectCall = () => {
+    if (incomingCall) {
+      connection.send(
+        JSON.stringify({ callRejected: true, peerId: incomingCall.peerId })
+      );
+      setIncomingCall(null);
+    }
+  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 w-full p-2 bg-background">
@@ -213,60 +157,33 @@ const MessageInput: React.FC<MessageInputProps> = ({
           exit={{ opacity: 0 }}
         >
           <div className="text-center">
-            <p className="mb-4 text-xl">
-              Incoming {incomingCall.type} call from {incomingCall.peerId}
-            </p>
+            <p className="mb-4 text-xl">Incoming {incomingCall.type} call</p>
             <div className="flex justify-center space-x-8">
               <Button
                 variant="outline"
-                onClick={() => {
-                  acceptCall(incomingCall.type, incomingCall.peerId);
-                  setIncomingCall(null);
-                }}
+                onClick={acceptCall}
                 className="flex items-center justify-center w-16 h-16 text-white bg-green-500 rounded-full"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  className="w-8 h-8"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                {incomingCall.type === "audio" ? (
+                  <BiMicrophone size={24} />
+                ) : (
+                  <BiVideo size={24} />
+                )}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setIncomingCall(null)}
+                onClick={rejectCall}
                 className="flex items-center justify-center w-16 h-16 text-white bg-red-500 rounded-full"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  className="w-8 h-8"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <BsXCircle />
               </Button>
             </div>
           </div>
         </motion.div>
       )}
-      {currentCall && (
+      {(currentCall || isCallInitiating) && (
         <motion.div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 text-white bg-black"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center text-white bg-black"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -274,62 +191,53 @@ const MessageInput: React.FC<MessageInputProps> = ({
           <audio id="remoteAudio" className="hidden"></audio>
           <video
             id="remoteVideo"
-            className="hidden"
-            width="300"
-            height="300"
-            controls
-          ></video>
-          <p className="mb-4 text-xl">
-            In a {currentCall.type} call - {callDuration}
-          </p>
+            className={
+              currentCall?.type === "video" ? "w-full max-w-lg" : "hidden"
+            }
+            playsInline
+            autoPlay
+            poster={
+              currentCall?.type === "video"
+                ? undefined
+                : `https://api.dicebear.com/6.x/initials/svg?seed=${username}`
+            }
+          />
+          {isCallInitiating ? (
+            <p className="mb-4 text-xl">Calling...</p>
+          ) : (
+            <p className="mb-4 text-xl">
+              {currentCall?.type === "audio" ? "Audio" : "Video"} call -{" "}
+              {callDuration}
+            </p>
+          )}
           <Button
             variant="outline"
-            onClick={() => {
-              if (currentCall && currentCall.call) {
-                currentCall.call.close();
-              }
-              setCurrentCall(null);
-              const videoElement = document.getElementById("remoteVideo");
-              if (videoElement) {
-                videoElement.classList.add("hidden");
-              }
-            }}
+            onClick={endCall}
             className="flex items-center justify-center w-16 h-16 text-white bg-red-500 rounded-full"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="w-8 h-8"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <BsXCircle />
           </Button>
         </motion.div>
       )}
-      <Button
-        variant="outline"
-        size="icon"
-        className="absolute p-1 rounded-full right-24 bottom-4 md:right-28"
-        onClick={() => initiateCall("video")}
-      >
-        <BiVideo />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="absolute p-1 rounded-full right-16 bottom-4 md:right-20"
-        onClick={() => initiateCall("audio")}
-      >
-        <BiPhoneOutgoing />
-      </Button>
-      <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          onClick={() => initiateCall("video")}
+          disabled={currentCall !== null || isCallInitiating}
+        >
+          <BiVideo />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          onClick={() => initiateCall("audio")}
+          disabled={currentCall !== null || isCallInitiating}
+        >
+          <BiPhoneOutgoing />
+        </Button>
         <AutosizeTextarea
           name="userInput"
           placeholder="Type your message"
@@ -337,20 +245,20 @@ const MessageInput: React.FC<MessageInputProps> = ({
           autoCapitalize="on"
           spellCheck="true"
           required
-          maxHeight={200}
+          maxLength={200}
           ref={textareaRef}
           onKeyDown={handleKeyDown}
-          className="pr-12"
+          className="flex-grow pr-12"
         />
         <Button
           variant="outline"
           size="icon"
-          className="absolute p-1 rounded-full right-4 bottom-4 md:right-8"
+          className="rounded-full"
           onClick={sendMessage}
         >
           <PaperPlaneIcon />
         </Button>
-      </form>
+      </div>
     </div>
   );
 };
